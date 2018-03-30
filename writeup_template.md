@@ -145,6 +145,7 @@ I removed this effect by implementing another type of search. When the lane is f
 After implementing this feature, the algorithm becomes more robust and for this video the lane has just a very few(1 or 2) minor deviations.
 
 ![Gray image example](/pictures/project_gif.gif)
+
 ---
 
 ### Discussion
