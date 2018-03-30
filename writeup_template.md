@@ -105,25 +105,49 @@ After that I draw the lane between the lines using `opencv`'s `fillPoly` functio
 
 ### 5. Measuring Curvature
 
+In the previous step I located the lane line pixels, used their x and y pixel positions to fit a second order polynomial curve:
 
-### 5. Pipeline (video)
+![Gray image example](/pictures/formula1.png)
 
-For the first run 
+The radius of curvature at any point xx of the function x = f(y)x=f(y) is given as follows:
 
+![Gray image example](/pictures/formula2.png)
 
+In the case of the second order polynomial above, the first and second derivatives are:
 
+![Gray image example](/pictures/formula3.png)
 
+So, the equation for radius of curvature becomes:
 
-### Pipeline (video)
+![Gray image example](/pictures/formula4.png)
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+Assuming the lane is about 30 meters long and 3.7 meters wide, I calculated the radius of curvature in meters.
 
-Here's a [link to my video result](./project_video.mp4)
+Assuming the camera is mounted at the center of the car, such that the lane center is the midpoint at the bottom of the image between the two lines detected, the offset of the lane center from the center of the image (converted from pixels to meters) is the distance from the center of the lane.
+
+### 6. Pipeline (video)
+
+For the first run I just used the single image's pipeline. I also collected some data about every image: 
+- mean width of the lane
+- left line curverad
+- right line curverad
+
+The result was OK for most parts of the video, but sometimes one or both lines curved more than needed. Here's an example of wrong left line curvature and the graphs of lane widht means and line curvatures.
+
+![Gray image example](/pictures/graphs.png)
+
+The upper graph shows that for the most part of the video the lane has roughly equal width, but sometimes it suddenly gets larger. The peaks are linked with the difficult places of the video, such as partially shadowed places. Here is how the line detection works on partially shadowed image:
+
+![Gray image example](/pictures/shadow.png)
+
+We can see that because of the large convolution window width the algorithm takes into account alot of noise caused by shadow.
+I removed this effect by implementing another type of search. When the lane is found on previous step, the algorithm doesn't perform blind search again, but tries to find the lane in the same region, but using much smaller convolution size.
+After implementing this feature, the algorithm becomes more robust and for this video the lane has just a very few(1 or 2) minor deviations.
 
 ---
 
 ### Discussion
 
-#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
-
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+* First of all, this algorithm does not detect lines in solid shadows. I'm still looking for a solution for this.
+* The same thing happens if there is a large glare covering half of the image - unable to detect the lane directly, but I think it's possible to use the previous lane states and the rotation of the environment.
+* It also fails then the lines are too pale. For this case there are softer threshold requiered, but also lesser convolution margins to avoid the noise.
