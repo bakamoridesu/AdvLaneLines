@@ -144,6 +144,7 @@ We can see that because of the large convolution window width the algorithm take
 I removed this effect by implementing another type of search. When the lane is found on previous step, the algorithm doesn't perform blind search again, but tries to find the lane in the same region, but using much smaller convolution size.
 After implementing this feature, the algorithm becomes more robust and for this video the lane has just a very few(1 or 2) minor deviations.
 
+![Gray image example](/pictures/project_gif.gif)
 ---
 
 ### Discussion
