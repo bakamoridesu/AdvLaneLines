@@ -18,72 +18,101 @@ The goals / steps of this project are the following:
 
 ### 1. Camera Calibration
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
+The first step is to read in calibration images of a chessboard.
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
+![Gray image example](/pictures/camera_cal.png)
 
-![alt text][image1]
+Each chessboard here has 9x6 corners to detect.
+For camera calibration I used the `opencv`'s `calibrateCamera` function which requires two arrays as input values: 
+- 3D points in real world space (image points)
+- 2D points in image plane(object points)
+So, for it calibration image I had to create these two arrays.
+The object points are all the same. Just the known object coordinates of the chessboard corners for an 9 by 6 board. These points are 3D coordinates x, y and z from the left top corner (0,0,0) to the bottom right corner (8,5,0). The z-coordinate is 0 for every point, since the board is on a flat image plane. And x and y are all the coordinates of the corners.
+Next, to create the image points, I used `opencv`'s `findChessBoardCorners` on the distorted image. To draw found corners I used the `drawChessBoardFunction`, and here is the result of finding corners:
 
-### Pipeline (single images)
+![Gray image example](/pictures/detected_corners.png)
 
-#### 1. Provide an example of a distortion-corrected image.
+Now that I have image points and object points for every image where the corners were found, I can get the calibration coefficients and the camera matrix that I need to transform 3D object points to 2D image points. The `opencv`'s `undistort` function performs this step, and here are the results of undistortion.
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
+![Gray image example](/pictures/undistortion_chess.png)
 
-#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
+![Gray image example](/pictures/undistortion_road.png)
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+### 2. Gradient and color selecting.
+#### 2.1 Gradient threshold
+Next step is about finding the edges in an image which are most likely being lane lines.
+But first I want to collect some images for tests. Namely I need images containing:
 
-![alt text][image3]
+- straight lines
+- curved lines
+- dotted, sparsed lines
 
-#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+Here are some examples that I found useful for tests:
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+![Gray image example](/pictures/test_images_str.png)
 
-```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
-```
+![Gray image example](/pictures/test_images_cur.png)
 
-This resulted in the following source and destination points:
+Firstly I used the `opencv`'s `Sobel` function for finding edges in a picture. I calculated the vertical and horizontal gradient, and also gradient's magnitude and direction:
 
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+![Gray image example](/pictures/h_v_gradient.png)
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+![Gray image example](/pictures/mag_dir_gradient.png)
 
-![alt text][image4]
+Then I tried different combinations of those techniques. Eventually i found out that the best combination is: `(vertical_gradient AND horizontal_gradient) OR (gradient_magnitude AND gradient_direction)`.
 
-#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
+![Gray image example](/pictures/combo_grad.png)
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+#### 2.2. Color threshold.
 
-![alt text][image5]
+For the color thresholding there were not any scientific approaches, I just tried out every single color space to overcome partial shadows and different line colors. The result was just OK, but if I had all the time in Universe, I could probably do something better. 
 
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+![Gray image example](/pictures/color_tr.png)
 
-I did this in lines # through # in my code in `my_other_file.py`
+#### 2.3. Combining thresholds.
 
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+Here is the result of combining color and gradient thresholds:
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+![Gray image example](/pictures/combbo_tr.png)
 
-![alt text][image6]
+### 3. Perspective transformation.
 
----
+For performing the perspective transformation I just picked an image with straight lines. These lines are supposed to be strict and parallel to each other. So slicing them with another two parallel lines which are perpendicular to them will result a rectangle. I found the four points of the larger rectangle that, after perspective transform, made the lines look straight and vertical from a bird's eye view perspective.
+
+![Gray image example](/pictures/pers_trans.png)
+
+### 4. Finding lane boundary.
+First I needed the starting point of the lines. For this I took the very bottom of the image since there were still some large noize in curved images.
+Here are the examples of an image and it's very bottom.
+
+![Gray image example](/pictures/boundary1.png)
+
+The pixel histogram of the image's bottom looks nice. There is no noise, just two solid peaks. 
+
+![Gray image example](/pictures/hist.png)
+
+But anyway to avoid noize I start from the center of the image and search for the closest peaks with a small convolutional window. First peak to the left means the left line and first to the right means right line (and of course I use a threshold for peaks). So, the starting points for lines are found. Next, I move convolutional windows up to find the rest of the line pixels.
+
+![Gray image example](/pictures/boundary2.png)
+
+Finally, I fit a second order polynomial to each line.
+
+![Gray image example](/pictures/boundary3.png)
+
+After that I draw the lane between the lines using `opencv`'s `fillPoly` function. And here are the results on my test images:
+
+![Gray image example](/pictures/result_images.png)
+
+### 5. Measuring Curvature
+
+
+### 5. Pipeline (video)
+
+For the first run 
+
+
+
+
 
 ### Pipeline (video)
 
